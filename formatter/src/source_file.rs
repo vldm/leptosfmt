@@ -54,9 +54,9 @@ fn format_source<'a>(
         let mac = view_mac.inner();
         let start = mac.path.span().start();
         let end = match mac.delimiter {
-            MacroDelimiter::Paren(delim) => delim.span.end(),
-            MacroDelimiter::Brace(delim) => delim.span.end(),
-            MacroDelimiter::Bracket(delim) => delim.span.end(),
+            MacroDelimiter::Paren(delim) => delim.span.close().end(),
+            MacroDelimiter::Brace(delim) => delim.span.close().end(),
+            MacroDelimiter::Bracket(delim) => delim.span.close().end(),
         };
 
         let start_byte = line_column_to_byte(&source, start);

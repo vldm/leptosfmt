@@ -1,39 +1,56 @@
-use syn_rsx::NodeValueExpr;
+use syn::{Expr, LitStr, ExprBlock, Block};
 
 use crate::{formatter::Formatter, source_file::format_expr_source};
 
 impl Formatter {
+    pub fn literal_str(&mut self, string: &LitStr) {
+        let val = format!("\"{}\"", string.value());
+        self.printer.word(val);
+
+    }
+
+
+    pub fn node_value_block(&mut self, block: &Block, unwrap_single_expr_blocks: bool, unwrap_single_lit_blocks: bool) {
+        
+        if let [syn::Stmt::Expr(single_expr, None)] = &block.stmts[..] {
+            // wrap with braces and do NOT insert spaces
+            if unwrap_single_expr_blocks
+                || (unwrap_single_lit_blocks && matches!(single_expr, syn::Expr::Lit(_)))
+            {
+                self.expr(single_expr);
+            } else {
+                self.printer.word("{");
+                self.expr(single_expr);
+                self.printer.word("}");
+            }
+            return;
+        }
+
+        self.expr(&Expr::Block(ExprBlock{
+            attrs: vec![],
+            label: None,
+            block: block.clone()
+        }))
+    }
     pub fn node_value_expr(
         &mut self,
-        value: &NodeValueExpr,
+        value: &syn::Expr,
         unwrap_single_expr_blocks: bool,
         unwrap_single_lit_blocks: bool,
     ) {
         // if single line expression, format as '{expr}' instead of '{ expr }' (prettyplease inserts a space)
-        if let syn::Expr::Block(expr_block) = value.as_ref() {
+        if let syn::Expr::Block(expr_block) = value {
             if expr_block.attrs.is_empty() {
-                if let [syn::Stmt::Expr(single_expr)] = &expr_block.block.stmts[..] {
-                    // wrap with braces and do NOT insert spaces
-                    if unwrap_single_expr_blocks
-                        || (unwrap_single_lit_blocks && matches!(single_expr, syn::Expr::Lit(_)))
-                    {
-                        self.expr(single_expr);
-                    } else {
-                        self.printer.word("{");
-                        self.expr(single_expr);
-                        self.printer.word("}");
-                    }
-                    return;
-                }
+                return self.node_value_block(&expr_block.block, unwrap_single_expr_blocks, unwrap_single_lit_blocks)
             }
         }
 
-        self.expr(value.as_ref())
+        self.expr(value)
     }
 
     fn expr(&mut self, expr: &syn::Expr) {
-        let formatted = leptosfmt_prettyplease::unparse_expr(expr);
-        let formatted = format_expr_source(&formatted, self.settings).unwrap_or(formatted);
+        // let formatted = leptosfmt_prettyplease::unparse_expr(expr);
+        let formatted = todo!();//format_expr_source(&formatted, self.settings).unwrap_or(formatted);
 
         let left_aligned = matches!(expr, syn::Expr::Lit(_));
         let mut iter = formatted.lines().peekable();
@@ -49,6 +66,7 @@ impl Formatter {
             }
         }
     }
+    
 }
 
 #[cfg(test)]
